@@ -42,6 +42,37 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   // 2.     If R is dirty, write it back to the disk.
   // 3.     Delete R from the page table and insert P.
   // 4.     Update P's metadata, read in the page content from disk, and then return a pointer to P.
+  std::unordered_map<page_id_t, frame_id_t>::const_iterator got = page_table_.find(page_id);
+  if(got == page_table_.end()) {
+    if(!free_list_.empty()) {
+      frame_id_t free_frame_id = free_list_.front();
+      free_list_.pop_front();
+      page_table_.insert(std::make_pair<page_id_t, frame_id_t>(page_id, free_frame_id));
+      char* data;
+      disk_manager_->ReadPage(page_id, data);
+      pages_[free_frame_id] = Page();
+      pages_[free_frame_id].page_id = page_id;
+      pages_[free_frame_id].data_ = data;
+      return pages_[free_frame_id];
+    } else {
+      frame_id_t replace_frame_id = 0;
+      if(replacer_.Victim(&replace_frame_id)) {
+        if(pages_[replace_frame_id].IsDirty()) {
+          disk_manager_->WritePage();
+        }
+        
+        
+        disk_manager_->ReadPage(page_id, data);
+        pages_[replace_frame_id].page_id = page_id;
+        pages_[replace_frame_id].data_ = data;
+      } else {
+        return nullptr;
+      }
+    }
+  } else {
+    replacer_.Pin(got->second);
+    return &pages_[got->first];
+  }
   return nullptr;
 }
 

@@ -47,6 +47,9 @@ class ClockReplacer : public Replacer {
 
  private:
   // TODO(student): implement me!
+  std:vector<frame_id_t> pages;
+  size_t num_pages_;
+  size_t current_;
 };
 
 }  // namespace bustub
